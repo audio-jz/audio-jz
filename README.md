@@ -1,4 +1,4 @@
-audio.js
+audio.jz
 ========
 
 Copyright (c) 2014 Andrew Ward, Martin Heath, Uditha Atukorala
