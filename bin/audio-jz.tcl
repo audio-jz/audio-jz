@@ -7,11 +7,6 @@
 #
 #    % sudo apt-get install flac
 #
-# Exiftool:- Reads METADATA
-#
-#    http://www.sno.phy.queensu.ca/~phil/exiftool/install.html#Unix
-#    Download and setup (http://www.sno.phy.queensu.ca/~phil/exiftool/install.html)
-#
 # SRC resample:- Does the resampling
 #
 #    http://www.mega-nerd.com/SRC/download.html
@@ -21,8 +16,8 @@
 #
 # Example Usage:-
 #
-# tclsh recode.tcl <BASE_DIR> <BASE_OUTPUT_DIR> <STARTING_DIR>
-# tclsh recode.tcl "/media/award/New Volume/Music" "/media/award/New Volume/192" "/media/award/New Volume/Music/Artists/Rush" 96000
+# audio-jz.tcl <BASE_DIR> <BASE_OUTPUT_DIR> <STARTING_DIR>
+# audio-jz.tcl "/media/award/New Volume/Music" "/media/award/New Volume/192" "/media/award/New Volume/Music/Artists/Rush" 96000
 #
 # The first directory (STARTINGDIR) is the starting place for the utility. It traverses the directory
 # structure under this directory, creates an identical structure under the second directory
@@ -41,19 +36,29 @@
 # /media/award/New Volume/192
 #
 # In this example, /media/award/New Volume/192/Artists/Rush would be created
+#
+# There is an option -m to do metadata only. If the destination file does not exist, it is ignored, otherwise
+# the metadata only is copied.
 
 # Next line is executed by /bin/sh only \
 exec tclsh $0 ${1+"$@"}
 
-global METADATA
 global STARTING_DIR
 global BASE_OUTPUT_DIR
 global SAMPLERATE
 global EXIT_ON_ERROR
 global OUTPUT_TO_SAME_DIR
 global FILE_APPEND
+global METADATA_ONLY
 
-array set METADATA [list]
+# Find and remove -m option to indicate copying metadata only
+puts "before argv: $argv"
+set metadata_only [lsearch $argv -m]
+if {$metadata_only != -1} {
+	set METADATA_ONLY 1
+	set argv [lreplace $argv $metadata_only $metadata_only]
+}
+puts "after argv: $argv"
 
 set BASE_DIR        [lindex $argv 0]
 set BASE_OUTPUT_DIR [lindex $argv 1]
@@ -124,73 +129,35 @@ proc resample {file newfile} {
 
 
 
-# Uses exiftool to extract the metadata from a file
+# Copy the metadata (tags and image) using metaflac
 #
-proc read_metadata {file} {
-	global METADATA
+proc copy_metadata {in_file out_file} {
 	global EXIT_ON_ERROR
 
-	array unset METADATA
+	# Create a temporary file name to store the pictures
+	set tmpfile $::argv0.[pid]
 
 	if {[catch {
-		set output [exec exiftool $file]
-	} msg]} {
-		puts "resample ERROR ($msg)"
-		if {$EXIT_ON_ERROR} {
-			exit
+		exec metaflac --remove-all-tags $out_file
+		exec metaflac --no-utf8-convert --export-tags-to=- $in_file | metaflac --no-utf8-convert --import-tags-from=- $out_file
+		exec metaflac --no-utf8-convert --export-picture-to=$tmpfile $in_file 
+		exec sync
+		if {[file exists $tmpfile]} {
+			exec metaflac --no-utf8-convert --import-picture-from=$tmpfile $out_file
 		}
-	}
 
-	set meta_list [split $output \n]
-
-	foreach {item} $meta_list {
-		# This extraction method is a bit hacky, could parse more cleverly
-		set name  [string trim [string range $item 0 31]]
-		set value [string trim [string range $item 34 end]]
-		set METADATA($name) $value
-
-		puts "METADATA ($name) = ($value)"
-	}
-}
-
-
-
-# Write the metadata using metaflac
-#
-proc write_metadata {file} {
-	global METADATA
-	global EXIT_ON_ERROR
-
-	# Default
-	set tags [list Artist Title Album "Album Artist" "Track Number" Composer Genre Date]
-
-	foreach tag $tags {
-		if {![info exists METADATA($tag)]} {
-			set METADATA($tag) ""
-		}
-	}
-
-	if {[catch {
-		set output [exec metaflac \
-			--set-tag=Artist=$METADATA(Artist)\
-			--set-tag=Title=$METADATA(Title)\
-			--set-tag=Album=$METADATA(Album)\
-			--set-tag=Genre=$METADATA(Genre)\
-			--set-tag=Date=$METADATA(Date)\
-			--set-tag=Composer=$METADATA(Composer)\
-			--set-tag=AlbumArtist=$METADATA(Album Artist)\
-			--set-tag=TrackNumber=$METADATA(Track Number)\
-			$file]
-
-		puts "write_metadata: $output"
+		set output [exec exiftool $out_file]
+		puts "copied metadata: $output"
 
 	} msg]} {
 
+		# Ignore errors - e.g. no picture in file
+		# TODO: improve!
 		puts "metaflac tagging error ($msg)"
-		if {$EXIT_ON_ERROR} {
-			exit
-		}
 	}
+
+	# Don't error if the file is not there
+	catch {[exec rm $tmpfile]} 
 }
 
 
@@ -206,6 +173,7 @@ proc navigate_dir {dir prev_dir depth} {
 	global BASE_DIR
 	global OUTPUT_TO_SAME_DIR
 	global FILE_APPEND
+	global METADATA_ONLY
 
 	incr depth
 	puts "Directory: $dir"
@@ -299,18 +267,26 @@ proc navigate_dir {dir prev_dir depth} {
 
 				# Check to see if it exists
 				if {[file exists $output_filename]} {
+
+					# If metadata only, then copy over
+					if {$METADATA_ONLY} {
+						# copy the tags and picture to the new file
+						copy_metadata $file_item $output_filename
+					}
+
 					puts "File already exists, continue."
-					continue
+
+				} else {
+
+					if {!$METADATA_ONLY} {
+						# Use SRC to resample
+						resample $file_item $output_filename
+					}
+
+					# copy the tags and picture to the new file
+					copy_metadata $file_item $output_filename
 				}
 
-				# Get the metadata from the original file
-				read_metadata $file_item
-
-				# Use SRC to resample
-				resample $file_item $output_filename
-
-				# Tag the new file
-				write_metadata $output_filename
 			}
 		}
 	}
