@@ -43,50 +43,80 @@
 # Next line is executed by /bin/sh only \
 exec tclsh $0 ${1+"$@"}
 
-global STARTING_DIR
-global BASE_OUTPUT_DIR
-global SAMPLERATE
-global EXIT_ON_ERROR
-global OUTPUT_TO_SAME_DIR
-global FILE_APPEND
-global METADATA_ONLY
 
-# Find and remove -m option to indicate copying metadata only
-puts "before argv: $argv"
-set metadata_only [lsearch $argv -m]
-if {$metadata_only != -1} {
-	set METADATA_ONLY 1
-	set argv [lreplace $argv $metadata_only $metadata_only]
-} else {
-	set METADATA_ONLY 0
+
+package require cmdline
+
+
+proc run {} {
+
+	global BASE_DIR
+	global BASE_OUTPUT_DIR
+	global EXIT_ON_ERROR
+	global FILE_APPEND
+	global METADATA_ONLY
+	global SAMPLERATE
+	global STARTING_DIR
+	global OUTPUT_TO_SAME_DIR
+
+	set options {
+		{s.arg      {96000} {sample rate}}
+		{m                  {copy metadata only}}
+		{in.arg     {}      {input file}}
+		{out.arg    {}      {output file}}
+		{batch              {batch processing}}
+		{base.arg   {}      {base directory for batch processing}}
+		{dest.arg   {}      {destination directory for batch processing output}}
+		{start.arg  {}      {starting directory for batch processing}}
+	}
+
+	# Try to parse command line options
+	if {[catch {
+		array set params [::cmdline::getoptions ::argv $options]
+	} msg]} {
+		puts $msg
+		exit 1
+	}
+
+	if {$params(m)} {
+		set METADATA_ONLY 1
+	} else {
+		set METADATA_ONLY 0
+	}
+
+	set SAMPLERATE    $params(s)
+	set FILE_APPEND   $SAMPLERATE
+	set EXIT_ON_ERROR 1
+
+	if {$params(batch)} {
+
+		# do batch processing
+		set BASE_DIR        $params(base)
+		set BASE_OUTPUT_DIR $params(dest)
+		set STARTING_DIR    $params(start)
+
+		if {![file isdirectory $STARTING_DIR]} {
+			puts "Starting directory not found $STARTING_DIR"
+			exit 1
+		}
+
+		if {$BASE_DIR == $BASE_OUTPUT_DIR} {
+			set OUTPUT_TO_SAME_DIR Y
+		} else {
+			set OUTPUT_TO_SAME_DIR N
+		}
+
+		# Start the navigation
+		navigate_dir $STARTING_DIR "" 0
+
+	} else {
+		# TODO: process a single file
+	}
+
+	exit 0
+
 }
-puts "after argv: $argv"
 
-set BASE_DIR        [lindex $argv 0]
-set BASE_OUTPUT_DIR [lindex $argv 1]
-set STARTING_DIR    [lindex $argv 2]
-set SAMPLERATE      [lindex $argv 3]
-
-set FILE_APPEND $SAMPLERATE
-set EXIT_ON_ERROR  1
-
-if {$SAMPLERATE == ""} {
-	# Default
-	set SAMPLERATE 96000
-}
-
-if {![file isdirectory $STARTING_DIR]} {
-	puts "Starting directory not found $STARTING_DIR"
-	exit
-}
-
-if {$BASE_DIR == $BASE_OUTPUT_DIR} {
-	#puts "Output directory must be different to base directory"
-	#exit
-	set OUTPUT_TO_SAME_DIR Y
-} else {
-	set OUTPUT_TO_SAME_DIR N
-}
 
 
 # Automatically set to resample at level 0 (highest)
@@ -295,6 +325,6 @@ proc navigate_dir {dir prev_dir depth} {
 }
 
 
-# Start the navigation
-navigate_dir $STARTING_DIR "" 0
+# Run
+run
 
