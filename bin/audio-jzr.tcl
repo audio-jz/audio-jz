@@ -110,7 +110,23 @@ proc run {} {
 		navigate_dir $STARTING_DIR "" 0
 
 	} else {
-		# TODO: process a single file
+
+		#  process a single file
+		if {[file exists $params(in)] && [string length $params(out)] > 0} {
+
+			if {!$METADATA_ONLY} {
+				# Use SRC to resample
+				resample $params(in) $params(out)
+			}
+
+			# copy the tags and picture to the new file
+			copy_metadata $params(in) $params(out)
+
+		} else {
+			puts stderr {Invalid input and/or output files}
+			exit 1
+		}
+
 	}
 
 	exit 0
