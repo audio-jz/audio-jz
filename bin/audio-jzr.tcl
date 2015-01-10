@@ -172,7 +172,7 @@ proc copy_metadata {in_file out_file} {
 	if {[catch {
 		exec metaflac --remove-all-tags $out_file
 		exec metaflac --no-utf8-convert --export-tags-to=- $in_file | metaflac --no-utf8-convert --import-tags-from=- $out_file
-		exec metaflac --no-utf8-convert --export-picture-to=$tmpfile $in_file 
+		exec metaflac --no-utf8-convert --export-picture-to=$tmpfile $in_file
 		exec sync
 		if {[file exists $tmpfile]} {
 			exec metaflac --no-utf8-convert --import-picture-from=$tmpfile $out_file
@@ -189,7 +189,7 @@ proc copy_metadata {in_file out_file} {
 	}
 
 	# Don't error if the file is not there
-	catch {[exec rm $tmpfile]} 
+	catch {[exec rm $tmpfile]}
 }
 
 
