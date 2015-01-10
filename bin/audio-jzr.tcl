@@ -16,8 +16,8 @@
 #
 # Example Usage:-
 #
-# audio-jz.tcl <BASE_DIR> <BASE_OUTPUT_DIR> <STARTING_DIR>
-# audio-jz.tcl "/media/award/New Volume/Music" "/media/award/New Volume/192" "/media/award/New Volume/Music/Artists/Rush" 96000
+# audio-jzr.tcl <BASE_DIR> <BASE_OUTPUT_DIR> <STARTING_DIR>
+# audio-jzr.tcl "/media/award/New Volume/Music" "/media/award/New Volume/192" "/media/award/New Volume/Music/Artists/Rush" 96000
 #
 # The first directory (STARTINGDIR) is the starting place for the utility. It traverses the directory
 # structure under this directory, creates an identical structure under the second directory
