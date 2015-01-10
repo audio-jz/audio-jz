@@ -57,6 +57,8 @@ set metadata_only [lsearch $argv -m]
 if {$metadata_only != -1} {
 	set METADATA_ONLY 1
 	set argv [lreplace $argv $metadata_only $metadata_only]
+} else {
+	set METADATA_ONLY 0
 }
 puts "after argv: $argv"
 
