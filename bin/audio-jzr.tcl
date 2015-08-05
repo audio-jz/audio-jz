@@ -2,6 +2,7 @@
 
 # N.B. To use this utility you need to install metaflac and exiftool
 #      and have libsamplerate installed
+# This also requires tcllib
 #
 # Metaflac:- FLAC tagging utility
 #
@@ -39,6 +40,8 @@
 #
 # There is an option -m to do metadata only. If the destination file does not exist, it is ignored, otherwise
 # the metadata only is copied.
+#
+# Wav files can be upsampled with no metadata 
 
 # Next line is executed by /bin/sh only \
 exec tclsh $0 ${1+"$@"}
@@ -254,9 +257,15 @@ proc navigate_dir {dir prev_dir depth} {
 			# N.B. resampler doesn't work on mp3
 			set file_extension [file extension $file_item]
 
-			if {$file_extension == ".flac"} {
+			if {$file_extension == ".flac" || $file_extension == ".wav"} {
 
-				puts "Found FLAC file to operate on $file_item"
+				set wav 0
+				if {$file_extension == ".flac"} {
+					puts "Found FLAC file to operate on $file_item"
+				} else {
+					puts "Found WAV file to operate on $file_item"
+					set wav 1
+				}
 
 				#
 				# Work out the new output directory/ filename
@@ -331,8 +340,10 @@ proc navigate_dir {dir prev_dir depth} {
 						resample $file_item $output_filename
 					}
 
+					if {!$wav} {
 					# copy the tags and picture to the new file
-					copy_metadata $file_item $output_filename
+						copy_metadata $file_item $output_filename
+					}
 				}
 
 			}
